@@ -3,191 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#e7e3dc">
-<title>Staircase 3D Viewer</title>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<meta name="theme-color" content="#111111">
+<title>Scaniverse Staircase Viewer</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@sparkjsdev/spark":"https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"}}</script>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#e7e3dc;color:#222}body{overflow:hidden}.app{height:100%;display:flex;flex-direction:column}.bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:9px max(10px,env(safe-area-inset-right)) 9px max(10px,env(safe-area-inset-left));background:rgba(255,255,255,.96);border-bottom:1px solid #c9c4bc;z-index:3}.bar strong{flex:1 1 230px}.bar button{min-height:42px;padding:7px 11px;border:1px solid #999;border-radius:9px;background:#fff;color:#222;font:600 13px system-ui;touch-action:manipulation}.bar button.active{background:#34424a;color:white}.view{position:relative;flex:1;min-height:0}.view canvas{display:block;width:100%;height:100%;touch-action:none}.help{position:absolute;left:10px;bottom:10px;max-width:min(650px,calc(100% - 20px));padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.90);font-size:12px;line-height:1.35;color:#444;pointer-events:none}.badge{position:absolute;right:10px;top:10px;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.90);font-size:11px;color:#555}.foot{font-size:11px;color:#666;padding:6px 10px calc(6px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #c9c4bc}@media(prefers-color-scheme:dark){html,body{background:#191919;color:#eee}.bar,.foot{background:#242424;border-color:#444}.bar button{background:#333;color:#eee;border-color:#666}.bar button.active{background:#eee;color:#222}.help,.badge{background:rgba(32,32,32,.90);color:#ddd}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#111;color:#fff}body{overflow:hidden}.app{height:100%;display:flex;flex-direction:column}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:#1a1a1a;border-bottom:1px solid #333;z-index:3}.bar strong{flex:1 1 220px}.bar button{min-height:42px;padding:8px 12px;border:1px solid #555;border-radius:9px;background:#2a2a2a;color:#fff;font:600 14px system-ui}.bar button.active{background:#f1f1f1;color:#111}.view{position:relative;flex:1;min-height:0}.view canvas{display:block;width:100%;height:100%;touch-action:none}.status{position:absolute;left:12px;top:12px;padding:7px 10px;border-radius:9px;background:rgba(0,0,0,.68);font-size:12px;max-width:calc(100% - 24px)}.help{position:absolute;left:12px;bottom:12px;padding:8px 10px;border-radius:9px;background:rgba(0,0,0,.68);font-size:12px;line-height:1.35;max-width:min(620px,calc(100% - 24px))}.foot{padding:7px 12px calc(7px + env(safe-area-inset-bottom));font-size:11px;color:#aaa;background:#171717;border-top:1px solid #333}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="bar">
-    <strong>Staircase in situ — video update</strong>
-    <button data-view="upper">Upper hall</button>
-    <button data-view="stair">Stairwell</button>
-    <button data-view="lower">Lower hall</button>
-    <button data-view="front">Front door</button>
-    <button data-view="top">Top</button>
-    <button id="walls" class="active">Walls on</button>
-    <button id="details" class="active">Details on</button>
+    <strong>Scaniverse staircase</strong>
+    <button id="reality" class="active">Reality (SPZ)</button>
+    <button id="mesh">Mesh (GLB)</button>
+    <button id="both">Both</button>
+    <button id="fit">Fit view</button>
+    <button id="top">Top</button>
   </div>
-  <div class="view" id="host">
-    <div class="badge">Updated from 2-minute video</div>
-    <div class="help">This pass uses the walkthrough video to retain more of the real setting: long carpeted upper hall, white panel doors, bedroom opening, stairwell window and signs, full handrails/balustrades, blue-grey lower hall, radiator and round mirror, glazed front door, tiled floor and kitchen opening. Drag to rotate · pinch to zoom · two-finger drag to pan.</div>
+  <div id="host" class="view">
+    <div id="status" class="status">Loading Scaniverse files…</div>
+    <div class="help">One-finger drag: rotate · pinch: zoom · two-finger drag: pan. “Reality” uses the Gaussian splat for photographic detail. “Mesh” uses the measured 3D surface.</div>
   </div>
-  <div class="foot">Still an inferred 3D reconstruction rather than photogrammetry. Proportions and exact positions can be corrected with measurements or a proper scan.</div>
+  <div class="foot">Source files: scaniverse/Tets1.spz (19.6 MB) and scaniverse/Tets1.glb (4.4 MB). The old hand-built reconstruction is no longer the primary scene.</div>
 </div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {SparkRenderer,SplatMesh} from '@sparkjsdev/spark';
 
 const host=document.getElementById('host');
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xdedbd5);
-const camera=new THREE.PerspectiveCamera(47,1,.05,100);
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.05;
-host.prepend(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement);
-controls.enableDamping=true;controls.enablePan=true;controls.minDistance=1.6;controls.maxDistance=24;controls.target.set(0,2.5,0);
-scene.add(new THREE.HemisphereLight(0xfffbf3,0x697078,2.55));
-const key=new THREE.DirectionalLight(0xfff4df,2.7);key.position.set(-5,10,6);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
-const fill=new THREE.DirectionalLight(0xdce9f4,.9);fill.position.set(5,5,-5);scene.add(fill);
+const status=document.getElementById('status');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x151515);
+const camera=new THREE.PerspectiveCamera(50,1,.01,500);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;host.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=true;controls.minDistance=.15;controls.maxDistance=100;
+scene.add(new THREE.HemisphereLight(0xffffff,0x555555,2.0));
+const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.position.set(4,8,6);scene.add(sun);
 
-const M={
- cream:new THREE.MeshStandardMaterial({color:0xe7e2d9,roughness:1,side:THREE.DoubleSide}),
- white:new THREE.MeshStandardMaterial({color:0xf5f3ee,roughness:.84}),
- blue:new THREE.MeshStandardMaterial({color:0x56656d,roughness:.96,side:THREE.DoubleSide}),
- stair:new THREE.MeshStandardMaterial({color:0x46545c,roughness:.48}),
- rail:new THREE.MeshStandardMaterial({color:0x37444b,roughness:.38}),
- carpet:new THREE.MeshStandardMaterial({color:0xb0a69a,roughness:1}),
- carpet2:new THREE.MeshStandardMaterial({color:0xa49a8f,roughness:1}),
- oak:new THREE.MeshStandardMaterial({color:0xb98e60,roughness:.8}),
- tile:new THREE.MeshStandardMaterial({color:0xe7e6e2,roughness:.82}),
- grout:new THREE.MeshStandardMaterial({color:0xbab8b3,roughness:1}),
- chrome:new THREE.MeshStandardMaterial({color:0xbfc3c5,roughness:.22,metalness:.72}),
- brass:new THREE.MeshStandardMaterial({color:0xc49a44,roughness:.27,metalness:.68}),
- glass:new THREE.MeshPhysicalMaterial({color:0xe1ecef,transparent:true,opacity:.30,roughness:.08,side:THREE.DoubleSide}),
- dark:new THREE.MeshStandardMaterial({color:0x292d30,roughness:.58}),
- mirror:new THREE.MeshPhysicalMaterial({color:0xcfd9dc,metalness:.72,roughness:.12}),
- plant:new THREE.MeshStandardMaterial({color:0x3f7f3d,roughness:.78}),
- pink:new THREE.MeshStandardMaterial({color:0xd22d78,roughness:.65}),
- fabric:new THREE.MeshStandardMaterial({color:0xc7bdb0,roughness:1})
-};
-const wallsGroup=new THREE.Group();scene.add(wallsGroup);
-const detailsGroup=new THREE.Group();scene.add(detailsGroup);
-function box(w,h,d,x,y,z,mat=M.stair,parent=scene){const g=new THREE.BoxGeometry(w,h,d),m=new THREE.Mesh(g,mat);m.position.set(x,y,z);m.castShadow=parent!==wallsGroup;m.receiveShadow=true;parent.add(m);return m}
-function cyl(r,h,x,y,z,mat=M.chrome,parent=detailsGroup,segments=20){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,segments),mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
-function cylBetween(a,b,r,mat=M.rail,parent=scene){const va=new THREE.Vector3(...a),vb=new THREE.Vector3(...b),v=new THREE.Vector3().subVectors(vb,va),len=v.length();const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);m.position.copy(va).add(vb).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize());m.castShadow=true;parent.add(m);return m}
-function post(x,z,y,h=1.02,parent=scene){box(.17,h,.17,x,y+h/2,z,M.stair,parent);box(.27,.08,.27,x,y+h+.035,z,M.stair,parent);box(.22,.09,.22,x,y+h+.12,z,M.stair,parent);const cap=box(.20,.19,.20,x,y+h+.25,z,M.stair,parent);cap.rotation.y=Math.PI/4;return cap}
-function railLine(a,b,y,parent=scene){return cylBetween([a.x,y,a.z],[b.x,y,b.z],.052,M.rail,parent)}
-function spindles(a,b,baseA,baseB,railA,railB,n,parent=scene){for(let i=1;i<n;i++){const t=i/n,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t,bh=baseA+(baseB-baseA)*t,rh=railA+(railB-railA)*t;box(.055,rh-bh,.055,x,(bh+rh)/2,z,M.stair,parent);box(.085,.16,.085,x,bh+.08,z,M.stair,parent);box(.085,.16,.085,x,rh-.08,z,M.stair,parent)}}
-function switchPlate(x,y,z,axis='x'){const p=box(axis==='x'?.018:.11,.12,axis==='x'?.09:.018,x,y,z,M.chrome,detailsGroup);return p}
-function frameZ(x,y,z,w=1.0,h=2.1){box(.10,h,.10,x-w/2,y+h/2,z,M.white,detailsGroup);box(.10,h,.10,x+w/2,y+h/2,z,M.white,detailsGroup);box(w+.2,.10,.10,x,y+h,z,M.white,detailsGroup)}
-function frameX(x,y,z,w=1.0,h=2.1){box(.10,h,.10,x,y+h/2,z-w/2,M.white,detailsGroup);box(.10,h,.10,x,y+h/2,z+w/2,M.white,detailsGroup);box(.10,.10,w+.2,x,y+h,z,M.white,detailsGroup)}
-function doorZ(x,y,z,w=.92,h=2.0){box(w,h,.055,x,y+h/2,z,M.white,detailsGroup);for(const yy of [y+.48,y+1.42])for(const xx of [x-.22,x+.22])box(.34,.62,.015,xx,yy,z-.035,M.white,detailsGroup);cyl(.035,.06,x+w*.38,y+1.02,z-.07,M.chrome,detailsGroup)}
-function doorX(x,y,z,w=.92,h=2.0){box(.055,h,w,x,y+h/2,z,M.white,detailsGroup);for(const yy of [y+.48,y+1.42])for(const zz of [z-.22,z+.22])box(.015,.62,.34,x-.035,yy,zz,M.white,detailsGroup);cyl(.035,.06,x-.07,y+1.02,z+w*.38,M.chrome,detailsGroup)}
-function canvasLabel(text,w=1.0,h=.45,bg='#e8e1d5',fg='#70675c'){const c=document.createElement('canvas');c.width=512;c.height=256;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,512,256);ctx.strokeStyle=fg;ctx.lineWidth=12;ctx.strokeRect(12,12,488,232);ctx.fillStyle=fg;ctx.font='bold 68px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,128);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const mat=new THREE.MeshBasicMaterial({map:tex});const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);detailsGroup.add(mesh);return mesh}
-function plant(x,y,z){const pot=cyl(.13,.26,x,y+.13,z,M.white,detailsGroup,24);const stems=[];for(let i=0;i<6;i++){const ang=i*Math.PI/3;const sx=x+Math.cos(ang)*.10,sz=z+Math.sin(ang)*.10;cylBetween([x,y+.25,z],[sx,y+.52+0.05*(i%2),sz],.012,M.plant,detailsGroup);const leaf=new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),M.plant);leaf.scale.set(1.5,.45,.75);leaf.position.set(sx,y+.53+0.05*(i%2),sz);detailsGroup.add(leaf)}}
+const spark=new SparkRenderer({renderer});scene.add(spark);
+const splat=new SplatMesh({url:'scaniverse/Tets1.spz'});scene.add(splat);
+let meshRoot=null;let meshBounds=null;let mode='reality';
 
-// Levels inferred from the video.
-const lower=0, upper=2.78, ceiling=5.26;
-// Lower hall tiled floor and upper hall carpet.
-box(4.8,.12,6.4,.55,-.06,-.15,M.tile,wallsGroup);
-for(let x=-1.55;x<2.8;x+=.72)box(.012,.015,5.8,x,.01,-.25,M.grout,detailsGroup);
-for(let z=-2.7;z<2.7;z+=.72)box(4.35,.015,.012,.6,.01,z,M.grout,detailsGroup);
-box(4.4,.14,6.4,-.35,upper-.07,.15,M.carpet,wallsGroup);
-// Long upper corridor extending beyond stair opening.
-box(1.6,.035,3.4,-1.05,upper+.018,-3.55,M.carpet,detailsGroup);
-// Bedroom floor visible at end/open door.
-box(2.0,.04,2.3,-1.08,upper+.02,-5.08,M.oak,detailsGroup);
+function setMode(next){mode=next;splat.visible=next!=='mesh';if(meshRoot)meshRoot.visible=next!=='reality';for(const id of ['reality','mesh','both'])document.getElementById(id).classList.toggle('active',id===next);status.textContent=next==='reality'?'Reality mode — Scaniverse Gaussian splat':next==='mesh'?'Mesh mode — Scaniverse GLB geometry':'Combined mode — splat + mesh';}
 
-// Main enclosing walls - cut into sections so doorways remain visible.
-box(.12,5.35,8.4,-2.25,2.65,-.55,M.cream,wallsGroup); // stairwell/corridor left wall
-box(5.6,2.55,.12,.45,4.02,-4.55,M.cream,wallsGroup); // upper end wall around bedroom area
-box(5.6,2.55,.12,.45,1.27,-3.05,M.blue,wallsGroup); // lower blue wall
-box(.12,2.55,2.3,2.85,1.27,-1.82,M.cream,wallsGroup);
-box(.12,2.55,2.0,2.85,1.27,2.2,M.cream,wallsGroup);
-box(.12,2.55,1.25,2.85,upper+1.27,2.55,M.cream,wallsGroup);
-// Upper corridor right wall split between panel doors.
-for(const seg of [[-3.95,.52],[-2.75,.35],[-1.55,.35],[-.32,.38],[1.05,.58]]) box(.12,2.48,seg[1],2.45,upper+1.24,seg[0],M.cream,wallsGroup);
-box(4.8,.12,8.0,.2,ceiling,-.5,M.white,wallsGroup);
-// skirting / cornice.
-box(.08,.13,7.9,-2.16,upper+.065,-.55,M.white,detailsGroup);
-box(.08,.16,7.9,-2.15,ceiling-.10,-.55,M.white,detailsGroup);
-box(4.4,.15,.08,-.1,upper+.07,3.05,M.white,detailsGroup);
+document.getElementById('reality').addEventListener('click',()=>setMode('reality'));
+document.getElementById('mesh').addEventListener('click',()=>setMode('mesh'));
+document.getElementById('both').addEventListener('click',()=>setMode('both'));
 
-// Upper hall: four panel doors on right, bedroom opening ahead, adjoining room opening.
-for(const z of [-3.35,-2.12,-.88,.55]){frameX(2.39,upper,z,.93,2.1);doorX(2.34,upper,z,.90,2.0)}
-frameZ(-1.05,upper,-4.48,1.0,2.12); // bedroom at end
-// Open door leaf rotated into bedroom.
-const openDoor=new THREE.Group();detailsGroup.add(openDoor);openDoor.position.set(-1.55,upper,-4.45);const od=box(.91,2.0,.055,.455,1.0,0,M.white,openDoor);openDoor.rotation.y=-.72;
-// Bedroom details seen in video/photos: brass bed and picture.
-for(const x of [-1.62,-.47]){cyl(.055,1.08,x,upper+.54,-5.05,M.brass);cyl(.09,.12,x,upper+1.10,-5.05,M.brass);const ball=new THREE.Mesh(new THREE.SphereGeometry(.075,14,10),M.brass);ball.position.set(x,upper+1.23,-5.05);detailsGroup.add(ball)}
-box(1.25,.48,1.4,-1.05,upper+.25,-5.35,M.white,detailsGroup);box(1.1,.04,1.1,-1.05,upper+.51,-5.15,M.fabric,detailsGroup);
-const picture=canvasLabel('FLOWERS',.72,.48,'#ddd3c8','#7e6e65');picture.position.set(-1.08,upper+1.55,-5.92);picture.rotation.y=Math.PI;
-// Upper corridor switches/sockets.
-switchPlate(-2.16,upper+1.13,1.75,'x');box(.025,.15,.18,-2.17,upper+.35,-.3,M.white,detailsGroup);
+function fitToMesh(top=false){if(!meshBounds)return;const box=meshBounds.clone();const size=box.getSize(new THREE.Vector3());const center=box.getCenter(new THREE.Vector3());const radius=Math.max(size.x,size.y,size.z)*.72||2;controls.target.copy(center);if(top){camera.position.set(center.x,center.y+radius*2.4,center.z+.001);}else{camera.position.set(center.x+radius*1.45,center.y+radius*.85,center.z+radius*1.45);}camera.near=Math.max(.01,radius/1000);camera.far=Math.max(100,radius*30);camera.updateProjectionMatrix();controls.update();}
+document.getElementById('fit').addEventListener('click',()=>fitToMesh(false));
+document.getElementById('top').addEventListener('click',()=>fitToMesh(true));
 
-// Stairwell window from video, sill and plant.
-frameX(-2.18,.92,.72,1.08,1.55);box(.035,1.38,.93,-2.13,1.69,.72,M.glass,detailsGroup);box(.25,.10,1.30,-2.03,.88,.72,M.white,detailsGroup);plant(-1.91,.95,.72);
-// Travel signs on cream wall.
-const dundee=canvasLabel('DUNDEE',.85,.40);dundee.position.set(-2.17,upper+1.48,.62);dundee.rotation.y=Math.PI/2;
-const china=canvasLabel('CHINA',.74,.36);china.position.set(-2.17,upper+.75,1.55);china.rotation.y=Math.PI/2;
-const washington=canvasLabel('WASHINGTON',.82,.35);washington.position.set(-2.17,2.05,.72);washington.rotation.y=Math.PI/2;
-// Pendant bulb.
-cylBetween([-.62,ceiling-.02,.85],[-.62,4.46,.85],.010,M.chrome,detailsGroup);cyl(.07,.12,-.62,4.40,.85,M.chrome);const bulb=new THREE.Mesh(new THREE.SphereGeometry(.09,16,12),M.white);bulb.position.set(-.62,4.29,.85);detailsGroup.add(bulb);
+const loader=new GLTFLoader();
+loader.load('scaniverse/Tets1.glb',gltf=>{meshRoot=gltf.scene;scene.add(meshRoot);meshRoot.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=true;}});meshBounds=new THREE.Box3().setFromObject(meshRoot);meshRoot.visible=false;fitToMesh(false);status.textContent='Loaded. Showing Reality (SPZ). Use Mesh to inspect geometry.';},xhr=>{if(xhr.total){status.textContent='Loading mesh '+Math.round(xhr.loaded/xhr.total*100)+'%…';}},err=>{console.error(err);status.textContent='SPZ viewer active; GLB mesh failed to load.';});
 
-// Stair geometry: upper straight section then three winders then lower straight section.
-const w=1.03, rise=.185, run=.265;
-// Lower straight flight rises toward +z.
-for(let i=0;i<6;i++){const h=rise*(i+1),z=.00+i*run;box(w,h,run+.025,.15,h/2,z,M.stair);box(w*.80,.035,run*.84,.15,h+.022,z,M.carpet)}
-const turnY=rise*6;
-// Quarter-turn winders approximated as shaped blocks.
-box(1.05,.18,.78,.16,turnY+.09,1.66,M.stair);box(.84,.035,.64,.17,turnY+.20,1.66,M.carpet);
-box(.82,.18,1.05,-.32,turnY+.27,1.97,M.stair);box(.67,.035,.84,-.32,turnY+.38,1.97,M.carpet);
-box(1.05,.18,.78,-.78,turnY+.45,2.26,M.stair);box(.84,.035,.64,-.78,turnY+.56,2.26,M.carpet);
-const upperBase=turnY+.54;
-// Upper flight runs toward -z to upper landing.
-for(let i=0;i<6;i++){const h=rise*(i+1),z=2.12-i*run;box(w,h,run+.025,-.87,upperBase+h/2,z,M.stair);box(w*.80,.035,run*.84,-.87,upperBase+h+.022,z,M.carpet)}
-// small top transition to match upper landing height visually
-box(1.05,.16,.58,-.87,upper-.08,.58,M.stair);box(.83,.035,.48,-.87,upper+.02,.58,M.carpet);
-
-// Stair balustrades + continuous handrails.
-const lowerA={x:.70,z:-.05}, lowerB={x:.70,z:1.47};post(lowerA.x,lowerA.z,0,.98);post(lowerB.x,lowerB.z,turnY,.98);
-cylBetween([lowerA.x,.94,lowerA.z],[lowerB.x,turnY+.94,lowerB.z],.052,M.rail);spindles(lowerA,lowerB,.12,turnY+.12,.86,turnY+.86,7);
-const turnP1={x:.70,z:1.47},turnP2={x:.70,z:2.45},turnP3={x:-.35,z:2.45};post(turnP2.x,turnP2.z,turnY+.54,.99);post(turnP3.x,turnP3.z,upperBase,.99);railLine(turnP1,turnP2,turnY+1.01);spindles(turnP1,turnP2,turnY+.62,turnY+.62,turnY+.96,turnY+.96,5);railLine(turnP2,turnP3,turnY+1.08);spindles(turnP2,turnP3,turnY+.65,upperBase+.12,turnY+1.03,upperBase+.96,5);
-const upperA={x:-.34,z:2.45}, upperB={x:-.34,z:.62};post(upperB.x,upperB.z,upper,.99);cylBetween([upperA.x,upperBase+.96,upperA.z],[upperB.x,upper+.95,upperB.z],.052,M.rail);spindles(upperA,upperB,upperBase+.12,upper+.10,upperBase+.90,upper+.88,7);
-// Upper landing guard running along corridor edge.
-const g1={x:-.34,z:.62},g2={x:-.34,z:-1.25};railLine(g1,g2,upper+.94);spindles(g1,g2,upper+.12,upper+.12,upper+.88,upper+.88,7);post(g2.x,g2.z,upper,.99);
-// towel on landing rail from video.
-box(.42,.42,.025,-.34,upper+.66,-.05,M.fabric,detailsGroup);
-
-// Lower hall blue feature wall with switch, radiator and round mirror.
-switchPlate(.82,1.28,-2.99,'z');
-box(1.45,.72,.12,-.50,.57,-2.91,M.white,detailsGroup);for(let x=-1.12;x<.12;x+=.12)cyl(.035,.62,x,.58,-2.84,M.white,detailsGroup,12);
-const mirror=new THREE.Mesh(new THREE.TorusGeometry(.49,.06,12,48),M.fabric);mirror.position.set(-.50,1.65,-2.93);detailsGroup.add(mirror);const mirrorDisc=new THREE.Mesh(new THREE.CircleGeometry(.43,48),M.mirror);mirrorDisc.position.set(-.50,1.65,-2.925);detailsGroup.add(mirrorDisc);
-// White lower-hall door to right.
-frameX(2.78,0,-1.72,.94,2.08);doorX(2.72,0,-1.72,.90,1.98);
-// Glazed arched front door seen at ~100 s. Use rectangular door + arched top impression.
-frameZ(1.18,0,2.92,1.03,2.15);box(.98,2.03,.06,1.18,1.015,2.87,M.white,detailsGroup);box(.76,1.38,.025,1.18,1.31,2.83,M.glass,detailsGroup);const arch=new THREE.Mesh(new THREE.RingGeometry(.31,.42,32,1,0,Math.PI),M.white);arch.position.set(1.18,1.79,2.80);arch.rotation.x=Math.PI;detailsGroup.add(arch);box(.60,.12,.025,1.18,.42,2.82,M.chrome,detailsGroup);cyl(.035,.07,.84,1.00,2.80,M.chrome,detailsGroup);
-// Kitchen / rear room opening and visible cabinets beyond.
-frameZ(.30,0,-3.0,1.06,2.12);box(2.3,.04,2.3,.30,.02,-4.15,M.tile,detailsGroup);box(2.15,.92,.52,.30,.46,-4.88,M.white,detailsGroup);box(1.6,.05,.55,.30,.95,-4.88,M.dark,detailsGroup);
-// Small under-stair cabinet seen in video.
-box(.78,1.35,.72,1.15,.68,.90,M.oak,detailsGroup);box(.05,1.20,.05,1.54,.68,.90,M.dark,detailsGroup);
-
-// View presets based on camera path in video.
-const views={
- upper:{p:[1.25,3.95,4.55],t:[-.45,3.02,-1.05]},
- stair:{p:[2.20,3.25,3.30],t:[-.25,1.65,1.30]},
- lower:{p:[2.15,1.65,1.05],t:[-.10,.95,-1.75]},
- front:{p:[-.25,1.65,-.05],t:[1.15,1.05,2.80]},
- top:{p:[0,9.6,.01],t:[-.10,1.55,.10]}
-};
-function go(v){camera.position.set(...v.p);controls.target.set(...v.t);controls.update()}
-go(views.upper);
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>go(views[b.dataset.view])));
-const wallsBtn=document.getElementById('walls');wallsBtn.addEventListener('click',()=>{wallsGroup.visible=!wallsGroup.visible;wallsBtn.classList.toggle('active',wallsGroup.visible);wallsBtn.textContent=wallsGroup.visible?'Walls on':'Walls off'});
-const detailsBtn=document.getElementById('details');detailsBtn.addEventListener('click',()=>{detailsGroup.visible=!detailsGroup.visible;detailsBtn.classList.toggle('active',detailsGroup.visible);detailsBtn.textContent=detailsGroup.visible?'Details on':'Details off'});
-function resize(){const r=host.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+function resize(){const r=host.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(host);resize();
-(function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})();
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
 </script>
 </body>
 </html>
