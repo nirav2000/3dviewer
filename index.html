@@ -7,69 +7,130 @@
 <title>Staircase 3D Viewer</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#ece8e1;color:#222}body{overflow:hidden}.app{height:100%;display:flex;flex-direction:column}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left));background:rgba(255,255,255,.95);border-bottom:1px solid #cbc5bd;z-index:2}.bar strong{flex:1 1 220px}.bar button{min-height:44px;padding:8px 13px;border:1px solid #999;border-radius:10px;background:#fff;color:#222;font:600 15px system-ui;touch-action:manipulation}.bar button.active{background:#222;color:#fff}.view{position:relative;flex:1;min-height:0}.view canvas{display:block;width:100%;height:100%;touch-action:none}.help{position:absolute;left:12px;bottom:12px;max-width:min(580px,calc(100% - 24px));padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.9);font-size:12px;line-height:1.35;color:#444;pointer-events:none}.badge{position:absolute;right:12px;top:12px;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.88);font-size:11px;color:#555}.error{padding:20px;color:#900;background:#fff}.foot{font-size:11px;color:#666;padding:7px 12px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #cbc5bd}@media(prefers-color-scheme:dark){html,body{background:#191919;color:#eee}.bar,.foot{background:#242424;border-color:#444}.bar button{background:#333;color:#eee;border-color:#666}.bar button.active{background:#eee;color:#222}.help,.badge{background:rgba(32,32,32,.9);color:#ddd}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#ece8e1;color:#222}body{overflow:hidden}.app{height:100%;display:flex;flex-direction:column}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left));background:rgba(255,255,255,.96);border-bottom:1px solid #cbc5bd;z-index:3}.bar strong{flex:1 1 230px}.bar button{min-height:44px;padding:8px 13px;border:1px solid #999;border-radius:10px;background:#fff;color:#222;font:600 14px system-ui;touch-action:manipulation}.bar button.active{background:#273139;color:#fff}.view{position:relative;flex:1;min-height:0}.view canvas{display:block;width:100%;height:100%;touch-action:none}.help{position:absolute;left:12px;bottom:12px;max-width:min(620px,calc(100% - 24px));padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.91);font-size:12px;line-height:1.35;color:#444;pointer-events:none}.badge{position:absolute;right:12px;top:12px;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.9);font-size:11px;color:#555}.error{padding:20px;color:#900;background:#fff}.foot{font-size:11px;color:#666;padding:7px 12px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #cbc5bd}@media(prefers-color-scheme:dark){html,body{background:#191919;color:#eee}.bar,.foot{background:#242424;border-color:#444}.bar button{background:#333;color:#eee;border-color:#666}.bar button.active{background:#eee;color:#222}.help,.badge{background:rgba(32,32,32,.9);color:#ddd}}
 </style>
 </head>
 <body>
 <div class="app">
-<div class="bar"><strong>Staircase in situ — test reconstruction</strong><button data-view="home">Home</button><button data-view="hall">Hall</button><button data-view="top">Top</button><button data-view="side">Side</button><button id="shell" class="active">Room on</button></div>
-<div class="view" id="host"><div class="badge">Approximate from 10 photos</div><div class="help">The surrounding stairwell, floors and walls are now retained so the staircase is shown in context. One-finger drag: rotate · pinch: zoom · two-finger drag: pan. Tap “Room on/off” for a cutaway view.</div></div>
-<div class="foot">The shell geometry and dimensions are estimated from the photographs. Tomorrow's larger photo set and measurements will make the actual room and staircase substantially more accurate.</div>
+<div class="bar"><strong>Staircase in situ — photo-based approximation</strong><button data-view="upper">Upper hall</button><button data-view="stairs">Stairs</button><button data-view="lower">Lower hall</button><button data-view="top">Top</button><button id="walls" class="active">Walls on</button><button id="details" class="active">Details on</button></div>
+<div class="view" id="host"><div class="badge">Approximate from 10 photos</div><div class="help">This version retains the visible house context: carpet, cream and blue-grey walls, doors and frames, switches, stairwell window, adjoining-room openings/floors, landing balustrades and handrails. One-finger drag: rotate · pinch: zoom · two-finger drag: pan.</div></div>
+<div class="foot">Geometry and dimensions remain inferred rather than surveyed. The aim here is to preserve the photographed setting, not to claim measured accuracy.</div>
 </div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const host=document.getElementById('host');
 try{
-const scene=new THREE.Scene();scene.background=new THREE.Color(0xd9d6cf);
-const camera=new THREE.PerspectiveCamera(43,1,.05,100);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;host.prepend(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=true;controls.minDistance=2.3;controls.maxDistance=20;controls.target.set(0,1.8,0);
-scene.add(new THREE.HemisphereLight(0xfff9ee,0x6d6b67,2.1));const sun=new THREE.DirectionalLight(0xfff4df,2.7);sun.position.set(5,9,6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
-const mats={wood:new THREE.MeshStandardMaterial({color:0x4d5558,roughness:.65}),carpet:new THREE.MeshStandardMaterial({color:0xa89e91,roughness:1}),floor:new THREE.MeshStandardMaterial({color:0xc9c0b1,roughness:1}),wall:new THREE.MeshStandardMaterial({color:0xe7dfd2,roughness:1,side:THREE.DoubleSide}),white:new THREE.MeshStandardMaterial({color:0xf3efe7,roughness:1}),brick:new THREE.MeshStandardMaterial({color:0x8f4738,roughness:.95}),dark:new THREE.MeshStandardMaterial({color:0x333638,roughness:.7}),glass:new THREE.MeshPhysicalMaterial({color:0xc9d8de,transparent:true,opacity:.24,roughness:.15,metalness:0,side:THREE.DoubleSide})};
-const shellGroup=new THREE.Group();scene.add(shellGroup);
-function box(w,h,d,x,y,z,mat=mats.wood,parent=scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=parent===scene;m.receiveShadow=true;parent.add(m);return m}
-function post(x,z,y,h=1.05){box(.16,h,.16,x,y+h/2,z);box(.25,.08,.25,x,y+h+.03,z);box(.19,.16,.19,x,y+h+.14,z)}
-function rail(a,b,y){const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),m=box(len,.09,.09,(a.x+b.x)/2,y,(a.z+b.z)/2);m.rotation.y=-Math.atan2(dz,dx);return m}
-function spindleLine(a,b,y0,y1,n){for(let i=1;i<n;i++){let t=i/n;box(.055,y1-y0,.055,a.x+(b.x-a.x)*t,(y0+y1)/2,a.z+(b.z-a.z)*t)}}
-// Approximate stairwell / surrounding building shell from photographs.
-box(7.8,.18,6.6,0,-.09,0,mats.floor,shellGroup); // lower floor
-box(7.8,.12,.18,0,1.55,-3.08,mats.wall,shellGroup); // rear wall lower
-box(.14,3.25,6.6,-3.55,1.55,0,mats.wall,shellGroup); // left wall
-box(.14,3.25,3.1,3.55,1.55,-1.72,mats.wall,shellGroup); // right rear wall
-box(.14,3.25,1.5,3.55,1.55,2.55,mats.wall,shellGroup); // right front pier
-// Brick wall visible alongside stair.
-box(.12,3.15,3.65,2.72,1.52,-.66,mats.brick,shellGroup);
-// Brick courses for visual reference.
-for(let y=.18;y<3.05;y+=.24){box(.008,.016,3.66,2.654,y,-.66,mats.white,shellGroup)}
-for(let z=-2.35;z<1.05;z+=.46){box(.008,3.05,.015,2.652,1.53,z,mats.white,shellGroup)}
-// Upper floor/landing around stairwell void — made as separate slabs around opening.
-const topFloorY=3.68;
-box(2.45,.18,6.6,-2.68,topFloorY,0,mats.floor,shellGroup);
-box(2.55,.18,6.6,2.62,topFloorY,0,mats.floor,shellGroup);
-box(2.8,.18,1.85,0,topFloorY,2.38,mats.floor,shellGroup);
-box(2.8,.18,1.0,0,topFloorY,-2.78,mats.floor,shellGroup);
-// Upper walls and ceiling impression.
-box(.14,2.6,6.6,-3.55,topFloorY+1.35,0,mats.wall,shellGroup);
-box(7.1,2.6,.14,0,topFloorY+1.35,-3.08,mats.wall,shellGroup);
-box(7.1,.14,6.6,0,topFloorY+2.62,0,mats.white,shellGroup);
-// Approximate doorway/opening seen from landing/hall.
-box(.16,2.2,.28,3.0,topFloorY+1.1,1.72,mats.white,shellGroup);box(.16,2.2,.28,3.0,topFloorY+1.1,2.72,mats.white,shellGroup);box(.16,.28,1.28,3.0,topFloorY+2.16,2.22,mats.white,shellGroup);
-// Window-like glazed opening to suggest photographed surrounding context.
-box(.035,1.15,1.4,3.02,topFloorY+1.3,-1.55,mats.glass,shellGroup);box(.06,1.3,.08,3.0,topFloorY+1.3,-1.55,mats.white,shellGroup);box(.06,.08,1.52,3.0,topFloorY+1.3,-1.55,mats.white,shellGroup);
-// Stair geometry.
-const rise=.22,run=.285,w=1.05;
-for(let i=0;i<7;i++){let h=rise*(i+1),z=1.75-i*run;box(w,h,run+.03,-1.35,h/2,z);box(w*.82,.035,run*.82,-1.35,h+.02,z,mats.carpet)}
-const mid=rise*7;box(1.35,.16,1.25,-1.05,mid-.08,-.55);box(1.05,.035,.96,-1.05,mid+.02,-.55,mats.carpet);box(1.2,.20,.72,-.42,mid+.10,-.50);box(.72,.20,1.18,.18,mid+.30,-.82);box(1.18,.20,.72,.46,mid+.50,-1.36);
-const upper=mid+.60;for(let i=0;i<7;i++){let h=rise*(i+1),z=-1.36+i*run;box(w,h,run+.03,.88,upper+h/2,z);box(w*.82,.035,run*.82,.88,upper+h+.02,z,mats.carpet)}
-const top=upper+rise*7;box(3.8,.18,2.15,1.15,top-.09,1.35,mats.floor);box(3.2,.04,1.75,1.25,top+.02,1.38,mats.carpet);
-const A={x:-.55,z:.32},B={x:-.55,z:2.05};post(A.x,A.z,top,1.14);post(B.x,B.z,top,1.14);rail(A,B,top+1.02);spindleLine(A,B,top+.16,top+1,7);
-const E={x:-.80,z:-.78},F={x:-2.05,z:-.78};post(E.x,E.z,mid,1.04);post(F.x,F.z,mid,1.04);rail(E,F,mid+.92);spindleLine(E,F,mid+.16,mid+.9,6);
-for(let i=0;i<7;i++){let z=1.75-i*run,b=rise*(i+1);box(.05,.75,.05,-.80,b+.375,z)}for(let i=0;i<7;i++){let z=-1.36+i*run,b=upper+rise*(i+1);box(.05,.78,.05,.31,b+.39,z)}
-// Additional landing rail around stairwell void.
-const U1={x:-.55,z:2.05},U2={x:.65,z:2.05};post(U2.x,U2.z,top,1.14);rail(U1,U2,top+1.02);spindleLine(U1,U2,top+.16,top+1,6);
-const views={home:{p:[8.2,5.9,8.5],t:[0,1.9,0]},hall:{p:[-4.8,2.0,5.1],t:[-.4,1.7,.1]},top:{p:[0,11.8,.01],t:[0,1.4,0]},side:{p:[9.3,3.8,.2],t:[0,1.8,0]}};
-function go(v){camera.position.set(...v.p);controls.target.set(...v.t);controls.update()}go(views.home);document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>go(views[b.dataset.view])));
-const shellBtn=document.getElementById('shell');shellBtn.addEventListener('click',()=>{shellGroup.visible=!shellGroup.visible;shellBtn.textContent=shellGroup.visible?'Room on':'Room off';shellBtn.classList.toggle('active',shellGroup.visible)});
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xd9d7d2);
+const camera=new THREE.PerspectiveCamera(45,1,.05,100);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;host.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=true;controls.minDistance=2;controls.maxDistance=22;controls.target.set(0,2.25,.25);
+scene.add(new THREE.HemisphereLight(0xfffbf2,0x70747a,2.4));const sun=new THREE.DirectionalLight(0xfff3df,2.6);sun.position.set(-5,10,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+const mats={
+ wood:new THREE.MeshStandardMaterial({color:0x46535b,roughness:.48}),
+ woodDark:new THREE.MeshStandardMaterial({color:0x323d43,roughness:.42}),
+ carpet:new THREE.MeshStandardMaterial({color:0xb3aa9f,roughness:1}),
+ carpetDark:new THREE.MeshStandardMaterial({color:0xa49a8e,roughness:1}),
+ wall:new THREE.MeshStandardMaterial({color:0xe6e1d8,roughness:1,side:THREE.DoubleSide}),
+ blueWall:new THREE.MeshStandardMaterial({color:0x59666d,roughness:.95,side:THREE.DoubleSide}),
+ white:new THREE.MeshStandardMaterial({color:0xf5f3ee,roughness:.82}),
+ chrome:new THREE.MeshStandardMaterial({color:0xb8bcc0,roughness:.23,metalness:.65}),
+ brass:new THREE.MeshStandardMaterial({color:0xb88b36,roughness:.26,metalness:.7}),
+ oak:new THREE.MeshStandardMaterial({color:0xb58e62,roughness:.78}),
+ tile:new THREE.MeshStandardMaterial({color:0xe8e6e1,roughness:.8}),
+ darkRoom:new THREE.MeshStandardMaterial({color:0x443c39,roughness:1}),
+ glass:new THREE.MeshPhysicalMaterial({color:0xd5e2e6,transparent:true,opacity:.27,roughness:.1,side:THREE.DoubleSide}),
+ black:new THREE.MeshStandardMaterial({color:0x202224,roughness:.55})
+};
+const wallsGroup=new THREE.Group();scene.add(wallsGroup);const detailGroup=new THREE.Group();scene.add(detailGroup);
+function box(w,h,d,x,y,z,mat=mats.wood,parent=scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=parent!==wallsGroup;m.receiveShadow=true;parent.add(m);return m}
+function cylBetween(a,b,r,mat=mats.wood,parent=scene){const va=new THREE.Vector3(...a),vb=new THREE.Vector3(...b),v=new THREE.Vector3().subVectors(vb,va),len=v.length();const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,10),mat);m.position.copy(va).add(vb).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize());m.castShadow=true;parent.add(m);return m}
+function post(x,z,y,h=1.05,parent=scene){box(.16,h,.16,x,y+h/2,z,mats.wood,parent);box(.25,.08,.25,x,y+h+.03,z,mats.wood,parent);box(.21,.10,.21,x,y+h+.11,z,mats.wood,parent);const cap=box(.19,.20,.19,x,y+h+.23,z,mats.wood,parent);cap.rotation.y=Math.PI/4;}
+function rail(a,b,y,parent=scene){const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),m=box(len,.095,.095,(a.x+b.x)/2,y,(a.z+b.z)/2,mats.woodDark,parent);m.rotation.y=-Math.atan2(dz,dx);return m}
+function spindleLine(a,b,y0,y1,n,parent=scene){for(let i=1;i<n;i++){let t=i/n,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;box(.055,y1-y0,.055,x,(y0+y1)/2,z,mats.wood,parent);box(.09,.18,.09,x,y0+.09,z,mats.wood,parent);box(.09,.18,.09,x,y1-.09,z,mats.wood,parent)}}
+function switchPlate(x,y,z,rot=0,parent=detailGroup){const p=box(.018,.12,.085,x,y,z,mats.chrome,parent);p.rotation.y=rot;const s=box(.022,.045,.026,x+(rot?0:-.012),y,z,mats.black,parent);s.rotation.y=rot;return p}
+function doorFrameX(x,y,z,w=1.0,h=2.12,parent=detailGroup){box(.10,h,.11,x,y+h/2,z-w/2,mats.white,parent);box(.10,h,.11,x,y+h/2,z+w/2,mats.white,parent);box(.10,.11,w+.2,x,y+h,z,mats.white,parent)}
+function doorX(x,y,z,w=1.0,h=2.02,open=0,parent=detailGroup){const g=new THREE.Group();parent.add(g);const d=box(.055,h,w,x,y+h/2,z,mats.white,g);if(open!==0){g.position.set(x,0,z-w/2);d.position.set(0,y+h/2,w/2);g.rotation.y=open} // approximate hinged door
+return g}
+function doorFrameZ(x,y,z,w=1.0,h=2.12,parent=detailGroup){box(.11,h,.10,x-w/2,y+h/2,z,mats.white,parent);box(.11,h,.10,x+w/2,y+h/2,z,mats.white,parent);box(w+.2,.11,.10,x,y+h,z,mats.white,parent)}
+function panelDoorZ(x,y,z,w=.94,h=2.02,parent=detailGroup){box(w,h,.055,x,y+h/2,z,mats.white,parent);for(const yy of [y+.47,y+1.38]){box(w*.67,.48,.012,x,yy,z-.034,mats.white,parent);box(w*.73,.025,.025,x,yy+.25,z-.05,mats.chrome,parent);box(w*.73,.025,.025,x,yy-.25,z-.05,mats.chrome,parent)}box(.055,.055,.06,x+w*.36,y+1.03,z-.06,mats.chrome,parent)}
+function windowX(x,y,z,w=1.1,h=1.35,parent=detailGroup){box(.09,h+.15,.12,x,y+h/2,z-w/2-.06,mats.white,parent);box(.09,h+.15,.12,x,y+h/2,z+w/2+.06,mats.white,parent);box(.09,.12,w+.24,x,y-.03,z,mats.white,parent);box(.09,.12,w+.24,x,y+h+.03,z,mats.white,parent);box(.035,h,w,x,y+h/2,z,mats.glass,parent);box(.04,h,.05,x-.03,y+h/2,z,mats.white,parent);}
+function tileFloor(w,d,x,z,y,parent=detailGroup){box(w,.04,d,x,y,z,mats.tile,parent);for(let xx=x-w/2+.45;xx<x+w/2;xx+=.75) box(.007,.045,d,xx,y+.01,z,mats.chrome,parent);for(let zz=z-d/2+.55;zz<z+d/2;zz+=.72) box(w,.045,.007,x,y+.01,zz,mats.chrome,parent)}
+// FLOORS AND ROOM CONTEXT
+const lowerY=0, midY=1.54, topY=3.68;
+box(7.8,.18,6.6,0,-.09,0,mats.oak,wallsGroup);
+// upper landing carpet and adjacent bedroom wood floor / darker room
+box(7.2,.15,4.6,.1,topY-.08,1.0,mats.carpet,wallsGroup);
+box(2.2,.04,2.5,-1.7,topY+.01,-2.0,mats.oak,detailGroup);
+box(2.1,.04,2.4,1.35,topY+.01,-2.0,mats.darkRoom,detailGroup);
+// lower hall tiled floor visible beyond lower landing
+ tileFloor(2.65,2.7,1.45,-1.48,.015,detailGroup);
+// WALL SHELL: cream stairwell + blue-grey lower hall feature wall
+box(.12,6.0,6.6,-3.45,3.0,0,mats.wall,wallsGroup);
+box(7.0,6.0,.12,0,3.0,3.12,mats.wall,wallsGroup);
+box(3.1,2.85,.12,-1.95,1.42,-3.08,mats.wall,wallsGroup);
+box(2.4,2.85,.12,2.25,1.42,-3.08,mats.blueWall,wallsGroup);
+box(2.25,2.75,.12,.7,topY+1.35,-3.08,mats.wall,wallsGroup);
+box(1.85,2.75,.12,2.55,topY+1.35,-3.08,mats.wall,wallsGroup);
+box(.12,2.75,1.5,3.45,topY+1.35,2.35,mats.wall,wallsGroup);
+box(.12,2.75,2.2,3.45,topY+1.35,-1.85,mats.wall,wallsGroup);
+box(7.0,.12,6.4,0,topY+2.7,0,mats.white,wallsGroup);
+// cornice/skirting impressions
+box(.08,.13,6.5,-3.37,topY+.065,0,mats.white,detailGroup);box(6.8,.12,.08,0,topY+.06,3.04,mats.white,detailGroup);box(6.8,.22,.10,0,topY+2.58,-3.0,mats.white,detailGroup);
+// UPPER HALL DOORS / OPENINGS FROM PHOTOS
+// bedroom opening ahead, with visible timber floor and a pale internal wall
+ doorFrameZ(-1.65,topY,-3.0,1.05,2.15);box(1.9,2.4,.08,-1.65,topY+1.2,-4.15,mats.wall,detailGroup);box(1.8,.04,1.8,-1.65,topY+.02,-3.9,mats.oak,detailGroup);
+// suggest bed/bedside shape seen through doorway
+box(1.4,.42,1.5,-1.7,topY+.24,-4.0,mats.white,detailGroup);box(.10,.95,.10,-2.20,topY+.48,-3.42,mats.brass??mats.oak: mats.oak,detailGroup);
+// darker room opening to right of it
+ doorFrameZ(.45,topY,-3.0,1.1,2.15);box(1.75,2.4,.08,.45,topY+1.2,-4.15,mats.darkRoom,detailGroup);box(1.3,.04,1.8,.45,topY+.02,-3.9,mats.darkRoom,detailGroup);
+// white closed door on right wall
+ doorFrameX(3.38,topY,-.15,1.0,2.15);const rightDoor=box(.055,2.02,.92,3.30,topY+1.01,-.15,mats.white,detailGroup);for(const zz of [-.38,.08]){box(.018,.64,.35,3.265,topY+.58,zz,mats.white,detailGroup);box(.018,.64,.35,3.265,topY+1.46,zz,mats.white,detailGroup)}box(.08,.05,.05,3.23,topY+1.02,.18,mats.chrome,detailGroup);
+// switches/sockets visible on upper hall
+switchPlate(-3.30,topY+1.28,1.86,0);switchPlate(.05,topY+1.2,-2.93,Math.PI/2);box(.035,.15,.18,-3.29,topY+.42,-.45,mats.white,detailGroup);
+// stairwell window on left wall
+windowX(-3.36,1.95,.45,1.05,1.4);
+// ceiling pendant bulb in stairwell
+cylBetween([-.8,topY+2.65,.7],[-.8,topY+1.82,.7],.012,mats.chrome,detailGroup);const bulb=new THREE.Mesh(new THREE.SphereGeometry(.10,16,12),mats.white);bulb.position.set(-.8,topY+1.72,.7);detailGroup.add(bulb);
+// lower hall blue wall switch and white door
+switchPlate(2.30,.0+1.28,-3.0,Math.PI/2);doorFrameX(3.35,.0,-1.65,.95,2.12);panelDoorZ(2.02,0,-3.0,.95,2.02);
+// lower white radiator approximation
+for(let i=0;i<9;i++) box(.045,.72,.08,3.30,.46,-.45+i*.09,mats.white,detailGroup);
+// STAIR GEOMETRY, dark painted wood with beige carpet
+const rise=.22,run=.285,w=1.06;
+for(let i=0;i<7;i++){let h=rise*(i+1),z=1.78-i*run;box(w,h,run+.035,-1.32,h/2,z,mats.wood);box(w*.84,.04,run*.88,-1.32,h+.024,z,mats.carpet)}
+const mid=rise*7;box(1.42,.18,1.32,-1.02,mid-.09,-.52,mats.wood);box(1.13,.04,1.05,-1.02,mid+.025,-.52,mats.carpet);
+// approximate winders with carpet tops
+const winders=[[-.38,mid+.11,-.49,1.22,.72],[.19,mid+.33,-.82,.76,1.20],[.49,mid+.55,-1.34,1.18,.76]];for(const [x,y,z,ww,dd] of winders){box(ww,.20,dd,x,y,z,mats.wood);box(ww*.82,.035,dd*.82,x,y+.115,z,mats.carpet)}
+const upper=mid+.66;for(let i=0;i<7;i++){let h=rise*(i+1),z=-1.36+i*run;box(w,h,run+.035,.90,upper+h/2,z,mats.wood);box(w*.84,.04,run*.88,.90,upper+h+.024,z,mats.carpet)}
+const stairTop=upper+rise*7;
+// carpeted upper landing continuous with hall
+box(3.25,.045,2.25,.98,stairTop+.02,1.30,mats.carpet);
+// BALUSTRADES / NEWELS
+const A={x:-.55,z:.28},B={x:-.55,z:2.12};post(A.x,A.z,stairTop,1.12);post(B.x,B.z,stairTop,1.12);rail(A,B,stairTop+1.0);spindleLine(A,B,stairTop+.14,stairTop+.96,8);
+const C={x:-.55,z:2.12},D={x:.78,z:2.12};post(D.x,D.z,stairTop,1.12);rail(C,D,stairTop+1.0);spindleLine(C,D,stairTop+.14,stairTop+.96,6);
+const E={x:-.78,z:-.82},F={x:-2.05,z:-.82};post(E.x,E.z,mid,1.04);post(F.x,F.z,mid,1.04);rail(E,F,mid+.92);spindleLine(E,F,mid+.14,mid+.88,7);
+// FLIGHT SPINDLES AND HANDRAILS — add the previously missing sloping rails
+for(let i=0;i<7;i++){let z=1.78-i*run,b=rise*(i+1);box(.052,.74,.052,-.77,b+.37,z,mats.wood);box(.085,.17,.085,-.77,b+.13,z,mats.wood);box(.085,.17,.085,-.77,b+.61,z,mats.wood)}
+for(let i=0;i<7;i++){let z=-1.36+i*run,b=upper+rise*(i+1);box(.052,.76,.052,.34,b+.38,z,mats.wood);box(.085,.17,.085,.34,b+.13,z,mats.wood);box(.085,.17,.085,.34,b+.63,z,mats.wood)}
+cylBetween([-.77,.0+1.00,1.88],[-.77,mid+1.00,-.12],.055,mats.woodDark);cylBetween([.34,upper+1.02,-1.48],[.34,stairTop+1.02,.52],.055,mats.woodDark);
+// opposite-wall handrail visible down stairwell
+cylBetween([-2.75,.90,1.85],[-2.75,mid+1.28,-.10],.042,mats.woodDark,detailGroup);
+// small lower landing rail/newel beyond stair
+post(1.72,-1.05,0,1.02,detailGroup);rail({x:1.72,z:-1.05},{x:.55,z:-1.05},.93,detailGroup);spindleLine({x:1.72,z:-1.05},{x:.55,z:-1.05},.15,.89,6,detailGroup);
+// A few photo-context objects kept deliberately simple: picture and dark bag shapes
+const picture=box(.035,.55,.62,-3.30,topY+1.42,-2.17,mats.white,detailGroup);picture.rotation.y=Math.PI/2;box(.025,.42,.48,-3.27,topY+1.42,-2.17,mats.darkRoom,detailGroup);
+box(.42,.55,.60,-.35,stairTop+.30,1.85,mats.black,detailGroup);
+// views matching photographed positions more closely
+const views={
+ upper:{p:[5.9,5.35,6.9],t:[-.35,4.35,-.15]},
+ stairs:{p:[4.6,4.2,3.9],t:[-.25,2.25,-.15]},
+ lower:{p:[4.9,2.25,-5.9],t:[-.15,1.45,-.25]},
+ top:{p:[0,11.8,.01],t:[0,2.3,0]}
+};
+function go(v){camera.position.set(...v.p);controls.target.set(...v.t);controls.update()}go(views.upper);document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>go(views[b.dataset.view])));
+const wallsBtn=document.getElementById('walls');wallsBtn.addEventListener('click',()=>{wallsGroup.visible=!wallsGroup.visible;wallsBtn.textContent=wallsGroup.visible?'Walls on':'Walls off';wallsBtn.classList.toggle('active',wallsGroup.visible)});
+const detailsBtn=document.getElementById('details');detailsBtn.addEventListener('click',()=>{detailGroup.visible=!detailGroup.visible;detailsBtn.textContent=detailGroup.visible?'Details on':'Details off';detailsBtn.classList.toggle('active',detailGroup.visible)});
 function resize(){let r=host.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}new ResizeObserver(resize).observe(host);resize();
 (function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})();
 }catch(e){console.error(e);const d=document.createElement('div');d.className='error';d.textContent='The 3D viewer could not start in this browser. Try opening the GitHub Pages link directly in Safari.';host.prepend(d)}
