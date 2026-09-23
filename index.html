@@ -62,5 +62,5 @@ function resize(){const r=host.getBoundingClientRect();renderer.setSize(Math.max
 new ResizeObserver(resize).observe(host);resize();
 renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
 </script>
-</body>
+<script>window.APP_MONITOR_APP="3dviewer";</script><script src="https://nirav2000.github.io/Apps/app-monitor.js?v=1"></script></body>
 </html>
